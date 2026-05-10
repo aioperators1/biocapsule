@@ -4,10 +4,11 @@
 
 .dashboard {
   min-height: 100vh;
-  background: #f8f9fb;
+  background: #fdfdff;
   padding: 1.5rem;
   direction: rtl;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Inter', 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #1e293b;
 }
 
 @media (min-width: 768px) {
@@ -109,19 +110,25 @@
 }
 
 .addStaffBtn {
-  padding: 0.5rem 1rem;
-  background: #ecfdf5;
-  color: #065f46;
-  border: 1px solid #d1fae5;
-  border-radius: 8px;
-  font-size: 0.82rem;
+  padding: 0.6rem 1.2rem;
+  background: #111827;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.85rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
 .addStaffBtn:hover {
-  background: #d1fae5;
+  background: #1f2937;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .adminSection {
@@ -385,8 +392,9 @@
 }
 
 .revenueCard:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  transform: translateY(-4px);
+  border-color: #e2e8f0;
 }
 
 .revenueIcon {
@@ -656,6 +664,16 @@
   background: #1f2937;
   transform: translateY(-2px);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.miniSpinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
 }
 
 
@@ -1155,32 +1173,76 @@
 
 .conversionWeek {
   background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
-  border-color: #dbeafe;
+  height: 4px;
 }
 
-.conversionDay {
-  background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);
-  border-color: #fef3c7;
+.conversionTotal::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+.conversionWeek::before { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+.conversionDay::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+
+.conversionCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.1);
+  border-color: #e2e8f0;
 }
 
 .conversionHeader {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  gap: 0.75rem;
 }
 
 .conversionIcon {
-  font-size: 1.1rem;
+  font-size: 1.25rem;
+  opacity: 0.8;
 }
 
 .conversionTitle {
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: 700;
-  color: #6b7280;
-  letter-spacing: 0.3px;
+  color: #64748b;
   text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
+
+.conversionRate {
+  font-size: 2.25rem;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -0.025em;
+}
+
+.conversionMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.conversionDivider {
+  opacity: 0.4;
+  font-weight: 400;
+}
+
+.conversionBar {
+  height: 8px;
+  background: #f1f5f9;
+  border-radius: 100px;
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+
+.conversionBarFill {
+  height: 100%;
+  border-radius: 100px;
+  transition: width 1s ease-out;
+}
+
+.conversionTotal .conversionBarFill { background: #3b82f6; }
+.conversionWeek .conversionBarFill { background: #8b5cf6; }
+.conversionDay .conversionBarFill { background: #f59e0b; }
 
 .conversionRate {
   font-size: 2.5rem;

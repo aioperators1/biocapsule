@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import styles from "./page.module.css";
-import { trackEvent, generateEventId } from "@/lib/tracking";
+import { trackEvent, generateEventId, getCookie } from "@/lib/tracking";
 
 export default function Home() {
   const checkoutRef = useRef<HTMLDivElement>(null);
@@ -72,10 +72,13 @@ export default function Home() {
     setIsSubmitting(true);
     try {
       const eventId = generateEventId();
+      const fbc = getCookie('_fbc');
+      const fbp = getCookie('_fbp');
+
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, eventId }),
+        body: JSON.stringify({ ...formData, eventId, fbc, fbp }),
       });
       if (res.ok) {
         trackEvent('Purchase', { value: 249, currency: 'MAD' }, eventId);
@@ -96,10 +99,13 @@ export default function Home() {
     setIsSubmitting(true);
     try {
       const eventId = generateEventId();
+      const fbc = getCookie('_fbc');
+      const fbp = getCookie('_fbp');
+
       await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: whatsappName.trim(), source: "whatsapp", eventId }),
+        body: JSON.stringify({ name: whatsappName.trim(), source: "whatsapp", eventId, fbc, fbp }),
       });
       
       trackEvent('Purchase', { value: 249, currency: 'MAD' }, eventId);

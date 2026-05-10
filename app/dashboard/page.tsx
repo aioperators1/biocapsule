@@ -231,8 +231,13 @@ export default function Dashboard() {
     }
   };
 
+  const [isSavingMarketing, setIsSavingMarketing] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
   const handleUpdateMarketingSettings = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSavingMarketing(true);
+    setSaveSuccess(false);
     try {
       const res = await fetch("/api/settings", {
         method: "POST",
@@ -240,12 +245,15 @@ export default function Dashboard() {
         body: JSON.stringify(marketingSettings),
       });
       if (res.ok) {
-        alert("تم حفظ إعدادات التسويق بنجاح");
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
       } else {
         alert("خطأ في حفظ الإعدادات");
       }
     } catch {
       alert("حدث خطأ أثناء الاتصال بالخادم");
+    } finally {
+      setIsSavingMarketing(false);
     }
   };
 
@@ -544,7 +552,17 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className={styles.marketingActions}>
-                <button type="submit" className={styles.marketingSaveBtn}>💾 حفظ إعدادات التتبع</button>
+                <button type="submit" className={styles.marketingSaveBtn} disabled={isSavingMarketing}>
+                  {isSavingMarketing ? (
+                    <>
+                      <div className={styles.miniSpinner} /> جاري الحفظ...
+                    </>
+                  ) : saveSuccess ? (
+                    <>✅ تم الحفظ بنجاح!</>
+                  ) : (
+                    <>💾 حفظ إعدادات التتبع</>
+                  )}
+                </button>
               </div>
             </form>
           </div>
