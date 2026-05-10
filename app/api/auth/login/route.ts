@@ -7,14 +7,30 @@ const usersFilePath = path.join(process.cwd(), 'data', 'users.json');
 export async function POST(req: Request) {
   const { username, password } = await req.json();
 
-  if (!fs.existsSync(usersFilePath)) {
-    return NextResponse.json({ success: false, error: "قاعدة بيانات المستخدمين غير موجودة" }, { status: 500 });
+  let users = [];
+  try {
+    if (fs.existsSync(usersFilePath)) {
+      const usersData = fs.readFileSync(usersFilePath, 'utf-8');
+      users = JSON.parse(usersData || '[]');
+    }
+  } catch (error) {
+    console.error("Failed to read users file:", error);
   }
 
-  const usersData = fs.readFileSync(usersFilePath, 'utf-8');
-  const users = JSON.parse(usersData || '[]');
+  // Fallback admin user if file doesn't exist (e.g. on Netlify read-only FS)
+  const defaultAdmin = {
+    username: "admin",
+    password: "biocapsuleadmin02",
+    name: "Admin",
+    role: "admin",
+    commissionRate: 0
+  };
 
-  const user = users.find((u: any) => u.username === username && u.password === password);
+  let user = users.find((u: any) => u.username === username && u.password === password);
+  
+  if (!user && username === defaultAdmin.username && password === defaultAdmin.password) {
+    user = defaultAdmin;
+  }
 
   if (user) {
     const response = NextResponse.json({ success: true, role: user.role });

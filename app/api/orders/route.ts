@@ -5,14 +5,28 @@ import { sendCAPIPurchaseEvent } from '@/lib/capi';
 
 const dataFilePath = path.join(process.cwd(), 'data', 'orders.json');
 
+// Helper to get safe file path
+function getSafeFilePath(filename: string) {
+  const isNetlify = process.env.NETLIFY === 'true' || process.env.URL?.includes('netlify.app');
+  return isNetlify ? path.join('/tmp', filename) : path.join(process.cwd(), 'data', filename);
+}
+
 // Helper to get orders
 function getOrders() {
-  if (!fs.existsSync(dataFilePath)) {
-    fs.mkdirSync(path.join(process.cwd(), 'data'), { recursive: true });
-    fs.writeFileSync(dataFilePath, JSON.stringify([]));
+  const filePath = getSafeFilePath('orders.json');
+  try {
+    if (!fs.existsSync(filePath)) {
+      if (!filePath.startsWith('/tmp')) {
+        fs.mkdirSync(path.join(process.cwd(), 'data'), { recursive: true });
+      }
+      fs.writeFileSync(filePath, JSON.stringify([]));
+    }
+    const data = fs.readFileSync(filePath, 'utf-8');
+    return JSON.parse(data || '[]');
+  } catch (error) {
+    console.error("Error reading orders:", error);
+    return [];
   }
-  const data = fs.readFileSync(dataFilePath, 'utf-8');
-  return JSON.parse(data || '[]');
 }
 
 export async function GET() {
@@ -54,7 +68,12 @@ export async function POST(request: Request) {
     };
     
     orders.push(newOrder);
-    fs.writeFileSync(dataFilePath, JSON.stringify(orders, null, 2));
+    try {
+      const filePath = getSafeFilePath('orders.json');
+      fs.writeFileSync(filePath, JSON.stringify(orders, null, 2));
+    } catch (e) {
+      console.error("Failed to write to file:", e);
+    }
     
     // Trigger Server-Side Tracking for non-whatsapp (since whatsapp goes away from site)
     if (!isWhatsapp && eventId) {
