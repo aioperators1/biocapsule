@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { sendCAPIPurchaseEvent } from '@/lib/capi';
 
 const dataFilePath = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -26,8 +27,12 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, phone, city, address, source } = body;
+    const { name, phone, city, address, source, eventId, fbc, fbp } = body;
     
+    // Get headers for CAPI
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '';
+    const userAgent = request.headers.get('user-agent') || '';
+
     // For normal orders, require fields. For whatsapp orders, use defaults.
     const isWhatsapp = source === 'whatsapp';
     
@@ -50,6 +55,18 @@ export async function POST(request: Request) {
     
     orders.push(newOrder);
     fs.writeFileSync(dataFilePath, JSON.stringify(orders, null, 2));
+    
+    // Trigger Server-Side Tracking for non-whatsapp (since whatsapp goes away from site)
+    if (!isWhatsapp && eventId) {
+      sendCAPIPurchaseEvent(
+        { name, phone, city, price: 249 }, // using the fixed price from earlier
+        eventId,
+        ip,
+        userAgent,
+        fbc,
+        fbp
+      );
+    }
     
     return NextResponse.json(newOrder, { status: 201 });
   } catch (error) {

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import styles from "./page.module.css";
+import { trackEvent, generateEventId } from "@/lib/tracking";
 
 export default function Home() {
   const checkoutRef = useRef<HTMLDivElement>(null);
@@ -20,8 +21,11 @@ export default function Home() {
 
   useEffect(() => {
     setIsMounted(true);
-    // Record page view
+    // Record page view internally
     fetch("/api/views", { method: "POST" }).catch(() => {});
+    
+    // Pixel Tracking
+    trackEvent('PageView');
   }, []);
 
   useEffect(() => {
@@ -48,6 +52,7 @@ export default function Home() {
   }, []);
 
   const scrollToCheckout = () => {
+    trackEvent('InitiateCheckout');
     if (checkoutRef.current) {
       checkoutRef.current.scrollIntoView({ behavior: "smooth" });
     } else {
@@ -66,12 +71,16 @@ export default function Home() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      const eventId = generateEventId();
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, eventId }),
       });
-      if (res.ok) setIsSuccess(true);
+      if (res.ok) {
+        trackEvent('Purchase', { value: 249, currency: 'MAD' }, eventId);
+        setIsSuccess(true);
+      }
     } catch (error) {
       alert("حدث خطأ في الاتصال. يرجى التأكد من اتصالك بالإنترنت.");
     } finally {
@@ -86,11 +95,15 @@ export default function Home() {
     }
     setIsSubmitting(true);
     try {
+      const eventId = generateEventId();
       await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: whatsappName.trim(), source: "whatsapp" }),
+        body: JSON.stringify({ name: whatsappName.trim(), source: "whatsapp", eventId }),
       });
+      
+      trackEvent('Purchase', { value: 249, currency: 'MAD' }, eventId);
+
       // Redirect to WhatsApp
       const phone = "212777330305";
       const message = `أريد الاستفادة من باقة 249 درهم BIO CAPSULE\nالاسم: ${whatsappName.trim()}`;
@@ -98,7 +111,7 @@ export default function Home() {
       window.location.href = whatsappUrl;
     } catch (error) {
       console.error("Failed to save whatsapp order", error);
-      alert("حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.");
+      alert("حدث خطأ. حاول مرة أخرى.");
     } finally {
       setIsSubmitting(false);
     }

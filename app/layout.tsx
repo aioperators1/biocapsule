@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { getSettings } from "@/lib/settings";
+import FacebookPixel from "@/components/pixels/FacebookPixel";
+import SnapchatPixel from "@/components/pixels/SnapchatPixel";
+import TikTokPixel from "@/components/pixels/TikTokPixel";
 
 export const metadata: Metadata = {
   title: "BIO-CAPSULE | 2X PACK - الحل الأمثل للتوتر والأرق",
@@ -11,12 +15,17 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const settings = getSettings();
+
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet" />
+        {settings.facebookPixelId && <FacebookPixel pixelId={settings.facebookPixelId} />}
+        {settings.snapchatPixelId && <SnapchatPixel pixelId={settings.snapchatPixelId} />}
+        {settings.tiktokPixelId && <TikTokPixel pixelId={settings.tiktokPixelId} />}
       </head>
       <body suppressHydrationWarning>{children}</body>
     </html>

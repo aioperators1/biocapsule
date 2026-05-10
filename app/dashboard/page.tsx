@@ -46,6 +46,10 @@ export default function Dashboard() {
   const [newStaff, setNewStaff] = useState({ username: '', password: '', name: '', role: 'staff', commissionRate: 0 });
   const [editingStaff, setEditingStaff] = useState<any>(null);
 
+  // Marketing Settings State
+  const [showMarketing, setShowMarketing] = useState(false);
+  const [marketingSettings, setMarketingSettings] = useState({ facebookPixelId: '', facebookAccessToken: '', snapchatPixelId: '', tiktokPixelId: '' });
+
   // Inline editing state: { orderId, field, value }
   const [editingCell, setEditingCell] = useState<{ orderId: string; field: string; value: string } | null>(null);
 
@@ -100,6 +104,23 @@ export default function Dashboard() {
     }
   };
 
+  const fetchMarketingSettings = async () => {
+    try {
+      const res = await fetch("/api/settings");
+      if (res.ok) {
+        const data = await res.json();
+        setMarketingSettings({
+          facebookPixelId: data.facebookPixelId || '',
+          facebookAccessToken: data.facebookAccessToken || '',
+          snapchatPixelId: data.snapchatPixelId || '',
+          tiktokPixelId: data.tiktokPixelId || ''
+        });
+      }
+    } catch (error) {
+      console.error("Failed to fetch marketing settings", error);
+    }
+  };
+
   const clearDailyViews = async () => {
     const key = prompt(`مسح ${pageViews.today} زيارة اليوم؟ سيتم طرحها من الإجمالي والأسبوع. أدخل الكود السري:`);
     if (key === "fuckit1") {
@@ -121,6 +142,9 @@ export default function Dashboard() {
       fetchOrders();
       fetchUsers();
       fetchViews();
+      if (currentUser?.role === 'admin') {
+        fetchMarketingSettings();
+      }
     }
   }, [authenticated, currentUser]);
 
@@ -204,6 +228,24 @@ export default function Dashboard() {
       } catch {
         alert("فشل الحذف");
       }
+    }
+  };
+
+  const handleUpdateMarketingSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(marketingSettings),
+      });
+      if (res.ok) {
+        alert("تم حفظ إعدادات التسويق بنجاح");
+      } else {
+        alert("خطأ في حفظ الإعدادات");
+      }
+    } catch {
+      alert("حدث خطأ أثناء الاتصال بالخادم");
     }
   };
 
@@ -424,14 +466,90 @@ export default function Dashboard() {
         </div>
         <div className={styles.headerLeft}>
           {isAdmin && (
-            <button onClick={() => setShowAddStaff(!showAddStaff)} className={styles.addStaffBtn}>
-              👥 إدارة فريق العمل
-            </button>
+            <>
+              <button onClick={() => {setShowMarketing(!showMarketing); setShowAddStaff(false);}} className={styles.addStaffBtn} style={{background: '#3b82f6'}}>
+                📊 إعدادات التسويق
+              </button>
+              <button onClick={() => {setShowAddStaff(!showAddStaff); setShowMarketing(false);}} className={styles.addStaffBtn}>
+                👥 إدارة فريق العمل
+              </button>
+            </>
           )}
           <Link href="/" className={styles.backLink}>← العودة للمتجر</Link>
           <button onClick={handleLogout} className={styles.logoutBtn}>تسجيل الخروج</button>
         </div>
       </header>
+
+      {/* ===== Marketing Settings Section ===== */}
+      {isAdmin && showMarketing && (
+        <div className={styles.adminSection}>
+          <div className={styles.marketingControlPanel}>
+            <div className={styles.marketingHeader}>
+              <h3>🎯 إعدادات بيكسل التتبع (Tracking Pixels)</h3>
+              <p>أدخل معرفات البيكسل والتوكن الخاص بك لتتبع الزوار والمبيعات. التغييرات تتفعل فوراً.</p>
+            </div>
+            <form onSubmit={handleUpdateMarketingSettings} className={styles.marketingForm}>
+              <div className={styles.marketingGrid}>
+                {/* Meta Pixel */}
+                <div className={styles.marketingCard}>
+                  <div className={styles.marketingCardIcon} style={{background: '#eff6ff', color: '#3b82f6'}}>📘</div>
+                  <div className={styles.marketingCardContent}>
+                    <label>Facebook Pixel ID</label>
+                    <input 
+                      type="text" 
+                      placeholder="مثال: 123456789012345" 
+                      value={marketingSettings.facebookPixelId} 
+                      onChange={e => setMarketingSettings({...marketingSettings, facebookPixelId: e.target.value})} 
+                    />
+                  </div>
+                </div>
+                {/* Meta CAPI */}
+                <div className={styles.marketingCard}>
+                  <div className={styles.marketingCardIcon} style={{background: '#f5f3ff', color: '#8b5cf6'}}>⚙️</div>
+                  <div className={styles.marketingCardContent}>
+                    <label>Facebook Conversions API Token</label>
+                    <input 
+                      type="password" 
+                      placeholder="الصق الـ Access Token..." 
+                      value={marketingSettings.facebookAccessToken} 
+                      onChange={e => setMarketingSettings({...marketingSettings, facebookAccessToken: e.target.value})} 
+                    />
+                  </div>
+                </div>
+                {/* Snapchat Pixel */}
+                <div className={styles.marketingCard}>
+                  <div className={styles.marketingCardIcon} style={{background: '#fefce8', color: '#eab308'}}>👻</div>
+                  <div className={styles.marketingCardContent}>
+                    <label>Snapchat Pixel ID</label>
+                    <input 
+                      type="text" 
+                      placeholder="مثال: 1234abcd-..." 
+                      value={marketingSettings.snapchatPixelId} 
+                      onChange={e => setMarketingSettings({...marketingSettings, snapchatPixelId: e.target.value})} 
+                    />
+                  </div>
+                </div>
+                {/* TikTok Pixel */}
+                <div className={styles.marketingCard}>
+                  <div className={styles.marketingCardIcon} style={{background: '#f8fafc', color: '#0f172a'}}>🎵</div>
+                  <div className={styles.marketingCardContent}>
+                    <label>TikTok Pixel ID</label>
+                    <input 
+                      type="text" 
+                      placeholder="مثال: C..." 
+                      value={marketingSettings.tiktokPixelId} 
+                      onChange={e => setMarketingSettings({...marketingSettings, tiktokPixelId: e.target.value})} 
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className={styles.marketingActions}>
+                <button type="submit" className={styles.marketingSaveBtn}>💾 حفظ إعدادات التتبع</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ===== Staff Management Section ===== */}
       {isAdmin && showAddStaff && (
