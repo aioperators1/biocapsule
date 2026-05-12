@@ -1,22 +1,26 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { readJsonFile, writeJsonFile } from '@/lib/data';
 
-const dataFilePath = path.join(process.cwd(), 'data', 'orders.json');
+type Order = {
+  id: string;
+  name: string;
+  phone: string;
+  city: string;
+  address: string;
+  status: string;
+  source: string;
+  date: string;
+  confirmedBy?: string;
+};
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { status, confirmedBy, name, phone, city, address } = await request.json();
     const { id } = await params;
     
-    if (!fs.existsSync(dataFilePath)) {
-      return NextResponse.json({ error: 'No orders found' }, { status: 404 });
-    }
+    const orders = readJsonFile<Order[]>('orders.json', []);
     
-    const data = fs.readFileSync(dataFilePath, 'utf-8');
-    const orders = JSON.parse(data || '[]');
-    
-    const orderIndex = orders.findIndex((o: any) => o.id === id);
+    const orderIndex = orders.findIndex((o) => o.id === id);
     if (orderIndex === -1) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
@@ -28,10 +32,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (city !== undefined) orders[orderIndex].city = city;
     if (address !== undefined) orders[orderIndex].address = address;
     
-    fs.writeFileSync(dataFilePath, JSON.stringify(orders, null, 2));
+    writeJsonFile('orders.json', orders);
     
     return NextResponse.json(orders[orderIndex]);
   } catch (error) {
+    console.error('Failed to update order:', error);
     return NextResponse.json({ error: 'Failed to update order' }, { status: 500 });
   }
 }
@@ -40,23 +45,19 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   try {
     const { id } = await params;
 
-    if (!fs.existsSync(dataFilePath)) {
-      return NextResponse.json({ error: 'No orders found' }, { status: 404 });
-    }
+    const orders = readJsonFile<Order[]>('orders.json', []);
     
-    const data = fs.readFileSync(dataFilePath, 'utf-8');
-    let orders = JSON.parse(data || '[]');
-    
-    const orderIndex = orders.findIndex((o: any) => o.id === id);
+    const orderIndex = orders.findIndex((o) => o.id === id);
     if (orderIndex === -1) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
     
     orders.splice(orderIndex, 1);
-    fs.writeFileSync(dataFilePath, JSON.stringify(orders, null, 2));
+    writeJsonFile('orders.json', orders);
     
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error('Failed to delete order:', error);
     return NextResponse.json({ error: 'Failed to delete order' }, { status: 500 });
   }
 }

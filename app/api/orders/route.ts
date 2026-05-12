@@ -1,39 +1,25 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { readJsonFile, writeJsonFile } from '@/lib/data';
 import { sendCAPIPurchaseEvent } from '@/lib/capi';
 
-const dataFilePath = path.join(process.cwd(), 'data', 'orders.json');
-
-// Helper to get safe file path
-function getSafeFilePath(filename: string) {
-  const isNetlify = process.env.NETLIFY === 'true' || process.env.URL?.includes('netlify.app');
-  return isNetlify ? path.join('/tmp', filename) : path.join(process.cwd(), 'data', filename);
-}
-
-// Helper to get orders
-function getOrders() {
-  const filePath = getSafeFilePath('orders.json');
-  try {
-    if (!fs.existsSync(filePath)) {
-      if (!filePath.startsWith('/tmp')) {
-        fs.mkdirSync(path.join(process.cwd(), 'data'), { recursive: true });
-      }
-      fs.writeFileSync(filePath, JSON.stringify([]));
-    }
-    const data = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(data || '[]');
-  } catch (error) {
-    console.error("Error reading orders:", error);
-    return [];
-  }
-}
+type Order = {
+  id: string;
+  name: string;
+  phone: string;
+  city: string;
+  address: string;
+  status: string;
+  source: string;
+  date: string;
+  confirmedBy?: string;
+};
 
 export async function GET() {
   try {
-    const orders = getOrders();
+    const orders = readJsonFile<Order[]>('orders.json', []);
     return NextResponse.json(orders);
   } catch (error) {
+    console.error('Failed to fetch orders:', error);
     return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
   }
 }
@@ -54,9 +40,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     }
 
-    const orders = getOrders();
+    const orders = readJsonFile<Order[]>('orders.json', []);
     
-    const newOrder = {
+    const newOrder: Order = {
       id: Date.now().toString(),
       name: name || (isWhatsapp ? 'طلب عبر الواتساب' : ''),
       phone: phone || (isWhatsapp ? 'واتساب' : ''),
@@ -68,17 +54,12 @@ export async function POST(request: Request) {
     };
     
     orders.push(newOrder);
-    try {
-      const filePath = getSafeFilePath('orders.json');
-      fs.writeFileSync(filePath, JSON.stringify(orders, null, 2));
-    } catch (e) {
-      console.error("Failed to write to file:", e);
-    }
+    writeJsonFile('orders.json', orders);
     
     // Trigger Server-Side Tracking for non-whatsapp (since whatsapp goes away from site)
     if (!isWhatsapp && eventId) {
       sendCAPIPurchaseEvent(
-        { name, phone, city, price: 249 }, // using the fixed price from earlier
+        { name, phone, city, price: 249 },
         eventId,
         ip,
         userAgent,
@@ -89,6 +70,7 @@ export async function POST(request: Request) {
     
     return NextResponse.json(newOrder, { status: 201 });
   } catch (error) {
+    console.error('Failed to save order:', error);
     return NextResponse.json({ error: 'Failed to save order' }, { status: 500 });
   }
 }

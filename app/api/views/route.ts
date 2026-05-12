@@ -1,24 +1,17 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { readJsonFile, writeJsonFile } from '@/lib/data';
 
-const dataFilePath = path.join(process.cwd(), 'data', 'views.json');
+type ViewsData = {
+  totalViews: number;
+  history: { date: string }[];
+};
 
-function getViewsData() {
-  if (!fs.existsSync(dataFilePath)) {
-    fs.mkdirSync(path.join(process.cwd(), 'data'), { recursive: true });
-    const initial = { totalViews: 0, history: [] };
-    fs.writeFileSync(dataFilePath, JSON.stringify(initial, null, 2));
-    return initial;
-  }
-  const data = fs.readFileSync(dataFilePath, 'utf-8');
-  return JSON.parse(data || '{"totalViews":0,"history":[]}');
-}
+const DEFAULT_VIEWS: ViewsData = { totalViews: 0, history: [] };
 
 // GET - return total views + today/week/month breakdown
 export async function GET() {
   try {
-    const viewsData = getViewsData();
+    const viewsData = readJsonFile<ViewsData>('views.json', DEFAULT_VIEWS);
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const weekStart = new Date(todayStart);
@@ -29,7 +22,7 @@ export async function GET() {
     let weekViews = 0;
     let monthViews = 0;
 
-    (viewsData.history || []).forEach((entry: { date: string }) => {
+    (viewsData.history || []).forEach((entry) => {
       const entryDate = new Date(entry.date);
       if (entryDate >= todayStart) todayViews++;
       if (entryDate >= weekStart) weekViews++;
@@ -43,6 +36,7 @@ export async function GET() {
       month: monthViews,
     });
   } catch (error) {
+    console.error('Failed to fetch views:', error);
     return NextResponse.json({ error: 'Failed to fetch views' }, { status: 500 });
   }
 }
@@ -50,7 +44,7 @@ export async function GET() {
 // POST - record a new page view
 export async function POST() {
   try {
-    const viewsData = getViewsData();
+    const viewsData = readJsonFile<ViewsData>('views.json', DEFAULT_VIEWS);
     viewsData.totalViews = (viewsData.totalViews || 0) + 1;
     viewsData.history = viewsData.history || [];
     viewsData.history.push({ date: new Date().toISOString() });
@@ -59,12 +53,13 @@ export async function POST() {
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
     viewsData.history = viewsData.history.filter(
-      (entry: { date: string }) => new Date(entry.date) >= ninetyDaysAgo
+      (entry) => new Date(entry.date) >= ninetyDaysAgo
     );
 
-    fs.writeFileSync(dataFilePath, JSON.stringify(viewsData, null, 2));
+    writeJsonFile('views.json', viewsData);
     return NextResponse.json({ success: true, total: viewsData.totalViews });
   } catch (error) {
+    console.error('Failed to record view:', error);
     return NextResponse.json({ error: 'Failed to record view' }, { status: 500 });
   }
 }
@@ -72,27 +67,28 @@ export async function POST() {
 // DELETE - clear today's views (subtracts from total and weekly too)
 export async function DELETE() {
   try {
-    const viewsData = getViewsData();
+    const viewsData = readJsonFile<ViewsData>('views.json', DEFAULT_VIEWS);
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     // Count how many views are from today
     const todayEntries = (viewsData.history || []).filter(
-      (entry: { date: string }) => new Date(entry.date) >= todayStart
+      (entry) => new Date(entry.date) >= todayStart
     );
     const removedCount = todayEntries.length;
 
     // Remove today's entries from history
     viewsData.history = (viewsData.history || []).filter(
-      (entry: { date: string }) => new Date(entry.date) < todayStart
+      (entry) => new Date(entry.date) < todayStart
     );
 
     // Subtract from total
     viewsData.totalViews = Math.max(0, (viewsData.totalViews || 0) - removedCount);
 
-    fs.writeFileSync(dataFilePath, JSON.stringify(viewsData, null, 2));
+    writeJsonFile('views.json', viewsData);
     return NextResponse.json({ success: true, removed: removedCount, total: viewsData.totalViews });
   } catch (error) {
+    console.error('Failed to clear daily views:', error);
     return NextResponse.json({ error: 'Failed to clear daily views' }, { status: 500 });
   }
 }

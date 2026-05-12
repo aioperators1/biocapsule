@@ -1,35 +1,35 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { readJsonFile } from "@/lib/data";
 
-const usersFilePath = path.join(process.cwd(), 'data', 'users.json');
+type User = {
+  username: string;
+  password: string;
+  name: string;
+  role: string;
+  commissionRate?: number;
+};
 
-export async function POST(req: Request) {
-  const { username, password } = await req.json();
-
-  let users = [];
-  try {
-    if (fs.existsSync(usersFilePath)) {
-      const usersData = fs.readFileSync(usersFilePath, 'utf-8');
-      users = JSON.parse(usersData || '[]');
-    }
-  } catch (error) {
-    console.error("Failed to read users file:", error);
-  }
-
-  // Fallback admin user if file doesn't exist (e.g. on Netlify read-only FS)
-  const defaultAdmin = {
+const DEFAULT_USERS: User[] = [
+  {
     username: "admin",
     password: "biocapsuleadmin02",
     name: "Admin",
     role: "admin",
     commissionRate: 0
-  };
+  }
+];
 
-  let user = users.find((u: any) => u.username === username && u.password === password);
+export async function POST(req: Request) {
+  const { username, password } = await req.json();
+
+  const users = readJsonFile<User[]>('users.json', DEFAULT_USERS);
+
+  // Find user by username and password
+  let user = users.find((u) => u.username === username && u.password === password);
   
-  if (!user && username === defaultAdmin.username && password === defaultAdmin.password) {
-    user = defaultAdmin;
+  // Fallback admin user if file doesn't have the admin (e.g. on Netlify cold start)
+  if (!user && username === "admin" && password === "biocapsuleadmin02") {
+    user = DEFAULT_USERS[0];
   }
 
   if (user) {

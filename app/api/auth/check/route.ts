@@ -1,9 +1,23 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import fs from "fs";
-import path from "path";
+import { readJsonFile } from "@/lib/data";
 
-const usersFilePath = path.join(process.cwd(), 'data', 'users.json');
+type User = {
+  username: string;
+  password: string;
+  name: string;
+  role: string;
+  commissionRate?: number;
+};
+
+const DEFAULT_USERS: User[] = [
+  {
+    username: "admin",
+    password: "biocapsuleadmin02",
+    name: "Admin",
+    role: "admin"
+  }
+];
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -14,25 +28,27 @@ export async function GET() {
       const sessionUser = JSON.parse(session.value);
       
       // Fetch fresh data from users.json to ensure commissionRate and other details are up-to-date
-      if (fs.existsSync(usersFilePath)) {
-        const usersData = fs.readFileSync(usersFilePath, 'utf-8');
-        const users = JSON.parse(usersData || '[]');
-        const freshUser = users.find((u: any) => u.username === sessionUser.username);
-        
-        if (freshUser) {
-          return NextResponse.json({ 
-            authenticated: true, 
-            user: {
-              username: freshUser.username,
-              name: freshUser.name,
-              role: freshUser.role,
-              commissionRate: freshUser.commissionRate || 0
-            } 
-          });
-        }
+      const users = readJsonFile<User[]>('users.json', DEFAULT_USERS);
+      const freshUser = users.find((u) => u.username === sessionUser.username);
+      
+      if (freshUser) {
+        return NextResponse.json({ 
+          authenticated: true, 
+          user: {
+            username: freshUser.username,
+            name: freshUser.name,
+            role: freshUser.role,
+            commissionRate: freshUser.commissionRate || 0
+          } 
+        });
       }
       
-      return NextResponse.json({ authenticated: true, user: sessionUser });
+      // User found in session but not in file — still allow if session has valid data
+      if (sessionUser.username && sessionUser.role) {
+        return NextResponse.json({ authenticated: true, user: sessionUser });
+      }
+      
+      return NextResponse.json({ authenticated: false }, { status: 401 });
     } catch {
       return NextResponse.json({ authenticated: false }, { status: 401 });
     }

@@ -1,5 +1,4 @@
-import fs from 'fs';
-import path from 'path';
+import { readJsonFile, writeJsonFile } from './data';
 
 export interface Settings {
   facebookPixelId?: string;
@@ -8,32 +7,25 @@ export interface Settings {
   tiktokPixelId?: string;
 }
 
-const settingsFilePath = path.join(process.cwd(), 'data', 'settings.json');
+const DEFAULT_SETTINGS: Settings = {
+  facebookPixelId: "",
+  facebookAccessToken: "",
+  snapchatPixelId: "",
+  tiktokPixelId: ""
+};
 
 export function getSettings(): Settings {
   try {
-    if (!fs.existsSync(settingsFilePath)) {
-      const defaultSettings: Settings = {
-        facebookPixelId: "",
-        facebookAccessToken: "",
-        snapchatPixelId: "",
-        tiktokPixelId: ""
-      };
-      fs.mkdirSync(path.join(process.cwd(), 'data'), { recursive: true });
-      fs.writeFileSync(settingsFilePath, JSON.stringify(defaultSettings, null, 2));
-      return defaultSettings;
-    }
-    const data = fs.readFileSync(settingsFilePath, 'utf-8');
-    return JSON.parse(data || '{}');
+    return readJsonFile<Settings>('settings.json', DEFAULT_SETTINGS);
   } catch (error) {
     console.error("Error reading settings:", error);
-    return {};
+    return DEFAULT_SETTINGS;
   }
 }
 
 export function updateSettings(newSettings: Partial<Settings>): Settings {
   const currentSettings = getSettings();
   const updatedSettings = { ...currentSettings, ...newSettings };
-  fs.writeFileSync(settingsFilePath, JSON.stringify(updatedSettings, null, 2));
+  writeJsonFile('settings.json', updatedSettings);
   return updatedSettings;
 }
