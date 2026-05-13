@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readJsonFile, writeJsonFile } from '@/lib/data';
+import { supabase } from '@/lib/supabase';
 import { sendCAPIPurchaseEvent } from '@/lib/capi';
 
 type Order = {
@@ -16,8 +16,14 @@ type Order = {
 
 export async function GET() {
   try {
-    const orders = readJsonFile<Order[]>('orders.json', []);
-    return NextResponse.json(orders);
+    const { data: orders, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('date', { ascending: false });
+      
+    if (error) throw error;
+    
+    return NextResponse.json(orders || []);
   } catch (error) {
     console.error('Failed to fetch orders:', error);
     return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
@@ -40,10 +46,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
     }
 
-    const orders = readJsonFile<Order[]>('orders.json', []);
-    
-    const newOrder: Order = {
-      id: Date.now().toString(),
+    const newOrder = {
       name: name || (isWhatsapp ? 'طلب عبر الواتساب' : ''),
       phone: phone || (isWhatsapp ? 'واتساب' : ''),
       city: city || (isWhatsapp ? '-' : ''),
@@ -53,10 +56,15 @@ export async function POST(request: Request) {
       date: new Date().toISOString()
     };
     
-    orders.push(newOrder);
-    writeJsonFile('orders.json', orders);
+    const { data: savedOrder, error } = await supabase
+      .from('orders')
+      .insert([newOrder])
+      .select()
+      .single();
+      
+    if (error) throw error;
     
-    // Trigger Server-Side Tracking for non-whatsapp (since whatsapp goes away from site)
+    // Trigger Server-Side Tracking for non-whatsapp
     if (!isWhatsapp && eventId) {
       sendCAPIPurchaseEvent(
         { name, phone, city, price: 249 },
@@ -68,7 +76,7 @@ export async function POST(request: Request) {
       );
     }
     
-    return NextResponse.json(newOrder, { status: 201 });
+    return NextResponse.json(savedOrder, { status: 201 });
   } catch (error) {
     console.error('Failed to save order:', error);
     return NextResponse.json({ error: 'Failed to save order' }, { status: 500 });

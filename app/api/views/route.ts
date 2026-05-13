@@ -1,36 +1,42 @@
 import { NextResponse } from 'next/server';
-import { readJsonFile, writeJsonFile } from '@/lib/data';
-
-type ViewsData = {
-  totalViews: number;
-  history: { date: string }[];
-};
-
-const DEFAULT_VIEWS: ViewsData = { totalViews: 0, history: [] };
+import { supabase } from '@/lib/supabase';
 
 // GET - return total views + today/week/month breakdown
 export async function GET() {
   try {
-    const viewsData = readJsonFile<ViewsData>('views.json', DEFAULT_VIEWS);
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekStart = new Date(todayStart);
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const weekStart = new Date(now.setDate(now.getDate() - now.getDay())).toISOString();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
+    const { data: statsDoc } = await supabase
+      .from('metadata')
+      .select('data')
+      .eq('id', 'views')
+      .single();
+      
+    const totalViews = statsDoc?.data?.total || 0;
+
+    const { data: viewsSnapshot } = await supabase
+      .from('views')
+      .select('date')
+      .gte('date', monthStart);
+    
     let todayViews = 0;
     let weekViews = 0;
     let monthViews = 0;
 
-    (viewsData.history || []).forEach((entry) => {
-      const entryDate = new Date(entry.date);
-      if (entryDate >= todayStart) todayViews++;
-      if (entryDate >= weekStart) weekViews++;
-      if (entryDate >= monthStart) monthViews++;
-    });
+    if (viewsSnapshot) {
+      viewsSnapshot.forEach(doc => {
+        const date = doc.date;
+        if (date >= todayStart) todayViews++;
+        if (date >= weekStart) weekViews++;
+        monthViews++;
+      });
+    }
 
     return NextResponse.json({
-      total: viewsData.totalViews,
+      total: totalViews,
       today: todayViews,
       week: weekViews,
       month: monthViews,
@@ -44,49 +50,65 @@ export async function GET() {
 // POST - record a new page view
 export async function POST() {
   try {
-    const viewsData = readJsonFile<ViewsData>('views.json', DEFAULT_VIEWS);
-    viewsData.totalViews = (viewsData.totalViews || 0) + 1;
-    viewsData.history = viewsData.history || [];
-    viewsData.history.push({ date: new Date().toISOString() });
+    const now = new Date().toISOString();
+    
+    // Add to collection
+    await supabase.from('views').insert([{ date: now }]);
+    
+    // Increment total in metadata (we can use an RPC function if we want atomic increments, 
+    // but for simplicity we fetch and update here, or if high traffic, RPC is needed. 
+    // Supabase has rpc 'increment_view_count')
+    const { data: statsDoc } = await supabase
+      .from('metadata')
+      .select('data')
+      .eq('id', 'views')
+      .single();
+      
+    const currentTotal = statsDoc?.data?.total || 0;
+    await supabase
+      .from('metadata')
+      .upsert({ id: 'views', data: { total: currentTotal + 1 } });
 
-    // Keep only last 90 days of history to prevent file from growing too large
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    viewsData.history = viewsData.history.filter(
-      (entry) => new Date(entry.date) >= ninetyDaysAgo
-    );
-
-    writeJsonFile('views.json', viewsData);
-    return NextResponse.json({ success: true, total: viewsData.totalViews });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Failed to record view:', error);
     return NextResponse.json({ error: 'Failed to record view' }, { status: 500 });
   }
 }
 
-// DELETE - clear today's views (subtracts from total and weekly too)
+// DELETE - clear today's views
 export async function DELETE() {
   try {
-    const viewsData = readJsonFile<ViewsData>('views.json', DEFAULT_VIEWS);
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
 
-    // Count how many views are from today
-    const todayEntries = (viewsData.history || []).filter(
-      (entry) => new Date(entry.date) >= todayStart
-    );
-    const removedCount = todayEntries.length;
+    const { data: snapshot } = await supabase
+      .from('views')
+      .select('id')
+      .gte('date', todayStart);
+      
+    const removedCount = snapshot?.length || 0;
+    
+    if (removedCount > 0) {
+      await supabase
+        .from('views')
+        .delete()
+        .gte('date', todayStart);
+        
+      // Decrement from total
+      const { data: statsDoc } = await supabase
+        .from('metadata')
+        .select('data')
+        .eq('id', 'views')
+        .single();
+        
+      const currentTotal = statsDoc?.data?.total || 0;
+      await supabase
+        .from('metadata')
+        .upsert({ id: 'views', data: { total: Math.max(0, currentTotal - removedCount) } });
+    }
 
-    // Remove today's entries from history
-    viewsData.history = (viewsData.history || []).filter(
-      (entry) => new Date(entry.date) < todayStart
-    );
-
-    // Subtract from total
-    viewsData.totalViews = Math.max(0, (viewsData.totalViews || 0) - removedCount);
-
-    writeJsonFile('views.json', viewsData);
-    return NextResponse.json({ success: true, removed: removedCount, total: viewsData.totalViews });
+    return NextResponse.json({ success: true, removed: removedCount });
   } catch (error) {
     console.error('Failed to clear daily views:', error);
     return NextResponse.json({ error: 'Failed to clear daily views' }, { status: 500 });

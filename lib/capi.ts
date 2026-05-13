@@ -14,7 +14,7 @@ export const sendCAPIPurchaseEvent = async (
   fbc?: string,
   fbp?: string
 ) => {
-  const settings = getSettings();
+  const settings = await getSettings();
   const { facebookPixelId, facebookAccessToken } = settings;
 
   if (!facebookPixelId || !facebookAccessToken) {

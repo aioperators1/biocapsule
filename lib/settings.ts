@@ -1,4 +1,4 @@
-import { readJsonFile, writeJsonFile } from './data';
+import { supabase } from './supabase';
 
 export interface Settings {
   facebookPixelId?: string;
@@ -14,18 +14,27 @@ const DEFAULT_SETTINGS: Settings = {
   tiktokPixelId: ""
 };
 
-export function getSettings(): Settings {
+export async function getSettings(): Promise<Settings> {
   try {
-    return readJsonFile<Settings>('settings.json', DEFAULT_SETTINGS);
+    const { data: doc } = await supabase
+      .from('metadata')
+      .select('data')
+      .eq('id', 'settings')
+      .single();
+      
+    if (!doc) return DEFAULT_SETTINGS;
+    return doc.data as Settings;
   } catch (error) {
     console.error("Error reading settings:", error);
     return DEFAULT_SETTINGS;
   }
 }
 
-export function updateSettings(newSettings: Partial<Settings>): Settings {
-  const currentSettings = getSettings();
+export async function updateSettings(newSettings: Partial<Settings>): Promise<Settings> {
+  const currentSettings = await getSettings();
   const updatedSettings = { ...currentSettings, ...newSettings };
-  writeJsonFile('settings.json', updatedSettings);
+  await supabase
+    .from('metadata')
+    .upsert({ id: 'settings', data: updatedSettings });
   return updatedSettings;
 }

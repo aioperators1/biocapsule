@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readJsonFile, writeJsonFile } from '@/lib/data';
+import { supabase } from '@/lib/supabase';
 
 type User = {
   username: string;
@@ -9,20 +9,32 @@ type User = {
   commissionRate?: number;
 };
 
-const DEFAULT_USERS: User[] = [
-  {
-    username: "admin",
-    password: "biocapsuleadmin02",
-    name: "Admin",
-    role: "admin"
-  }
-];
+const DEFAULT_ADMIN: User = {
+  username: "admin",
+  password: "biocapsuleadmin02",
+  name: "Admin",
+  role: "admin",
+  commissionRate: 0
+};
 
 export async function GET() {
   try {
-    const users = readJsonFile<User[]>('users.json', DEFAULT_USERS);
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('*');
+      
+    if (error) throw error;
+    
+    let activeUsers = users || [];
+    
+    if (activeUsers.length === 0) {
+      // Seed default admin if no users exist
+      await supabase.from('users').insert([DEFAULT_ADMIN]);
+      activeUsers = [DEFAULT_ADMIN];
+    }
+
     // Send names, usernames, roles, and commission rates (never passwords)
-    return NextResponse.json(users.map((u) => ({ 
+    return NextResponse.json(activeUsers.map((u) => ({ 
       username: u.username, 
       name: u.name, 
       role: u.role,
@@ -36,16 +48,24 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const newUser = await request.json(); // { username, password, name, role, commissionRate }
+    const newUser = await request.json();
     
-    const users = readJsonFile<User[]>('users.json', DEFAULT_USERS);
-    
-    if (users.find((u) => u.username === newUser.username)) {
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('username')
+      .eq('username', newUser.username)
+      .single();
+      
+    if (existingUser) {
       return NextResponse.json({ error: 'Username already exists' }, { status: 400 });
     }
     
-    users.push({ ...newUser, commissionRate: Number(newUser.commissionRate) || 0 });
-    writeJsonFile('users.json', users);
+    const { error } = await supabase.from('users').insert([{
+      ...newUser,
+      commissionRate: Number(newUser.commissionRate) || 0
+    }]);
+    
+    if (error) throw error;
     
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -56,17 +76,20 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const updateData = await request.json(); // { username, name, password?, commissionRate }
-    const users = readJsonFile<User[]>('users.json', DEFAULT_USERS);
+    const updateData = await request.json();
     
-    const userIndex = users.findIndex((u) => u.username === updateData.username);
-    if (userIndex === -1) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const updatePayload: any = {};
+    if (updateData.name) updatePayload.name = updateData.name;
+    if (updateData.password) updatePayload.password = updateData.password;
+    if (updateData.commissionRate !== undefined) updatePayload.commissionRate = Number(updateData.commissionRate);
     
-    if (updateData.name) users[userIndex].name = updateData.name;
-    if (updateData.password) users[userIndex].password = updateData.password;
-    if (updateData.commissionRate !== undefined) users[userIndex].commissionRate = Number(updateData.commissionRate);
+    const { error } = await supabase
+      .from('users')
+      .update(updatePayload)
+      .eq('username', updateData.username);
+      
+    if (error) throw error;
     
-    writeJsonFile('users.json', users);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Failed to update user:', error);
@@ -77,10 +100,13 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const { username } = await request.json();
-    const users = readJsonFile<User[]>('users.json', DEFAULT_USERS);
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('username', username);
+      
+    if (error) throw error;
     
-    const filteredUsers = users.filter((u) => u.username !== username);
-    writeJsonFile('users.json', filteredUsers);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Failed to delete user:', error);
