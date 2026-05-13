@@ -10,12 +10,12 @@ export const metadata: Metadata = {
   description: "استعد توازنك الطبيعي مع باقة 2X PACK. نهار هادئ ونوم عميق بفضل تركيبة طبيعية 100%.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const settings = getSettings();
+  const settings = await getSettings();
 
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
