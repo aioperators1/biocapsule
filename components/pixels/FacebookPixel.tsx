@@ -38,7 +38,7 @@ export default function FacebookPixel({ pixelId }: { pixelId: string }) {
           height="1"
           width="1"
           style={{ display: 'none' }}
-          src={\`https://www.facebook.com/tr?id=\${pixelId}&ev=PageView&noscript=1\`}
+          src={`https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1`}
           alt=""
         />
       </noscript>
