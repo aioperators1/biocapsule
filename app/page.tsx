@@ -7,6 +7,7 @@ import { trackEvent, generateEventId, getCookie } from "@/lib/tracking";
 
 export default function Home() {
   const checkoutRef = useRef<HTMLDivElement>(null);
+  const trackedEvents = useRef<Set<string>>(new Set());
   const [showSticky, setShowSticky] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -24,8 +25,8 @@ export default function Home() {
     // Record page view internally
     fetch("/api/views", { method: "POST" }).catch(() => {});
     
-    // Pixel Tracking
-    trackEvent('PageView');
+    // Pixel Tracking handled by FacebookPixel.tsx to avoid duplicates
+    // trackEvent('PageView');
   }, []);
 
   useEffect(() => {
@@ -52,7 +53,11 @@ export default function Home() {
   }, []);
 
   const scrollToCheckout = () => {
-    trackEvent('InitiateCheckout');
+    if (!trackedEvents.current.has('InitiateCheckout')) {
+      trackEvent('InitiateCheckout');
+      trackedEvents.current.add('InitiateCheckout');
+    }
+
     if (checkoutRef.current) {
       checkoutRef.current.scrollIntoView({ behavior: "smooth" });
     } else {
@@ -69,6 +74,7 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setIsSubmitting(true);
     try {
       const eventId = generateEventId();
@@ -92,6 +98,7 @@ export default function Home() {
   };
 
   const handleWhatsappOrder = async () => {
+    if (isSubmitting) return;
     if (!whatsappName.trim()) {
       alert("يرجى إدخال الاسم الكامل قبل الطلب عبر الواتساب");
       return;
