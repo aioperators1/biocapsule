@@ -54,7 +54,8 @@ export default function Home() {
 
   const scrollToCheckout = () => {
     if (!trackedEvents.current.has('InitiateCheckout')) {
-      trackEvent('InitiateCheckout');
+      const checkoutEventId = generateEventId();
+      trackEvent('InitiateCheckout', {}, checkoutEventId);
       trackedEvents.current.add('InitiateCheckout');
     }
 
