@@ -20,6 +20,7 @@ export default function FacebookPixel({ pixelId }: { pixelId: string }) {
             t.src=v;s=b.getElementsByTagName(e)[0];
             s.parentNode.insertBefore(t,s)}(window, document,'script',
             'https://connect.facebook.net/en_US/fbevents.js');
+            fbq('set', 'autoConfig', false, '${pixelId}');
             fbq('init', '${pixelId}');
             fbq('track', 'PageView');
           `,
