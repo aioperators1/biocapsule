@@ -25,7 +25,8 @@ export const trackEvent = (eventName: TrackingEvent, data: any = {}, eventId?: s
   // TikTok Pixel
   if (w.ttq) {
     const ttqEventName = getTikTokEventName(eventName);
-    w.ttq.track(ttqEventName, data);
+    const options = eventId ? { event_id: eventId } : undefined;
+    w.ttq.track(ttqEventName, data, options);
   }
 };
 
