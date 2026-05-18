@@ -88,7 +88,7 @@ export default function Home() {
         body: JSON.stringify({ ...formData, eventId, fbc, fbp }),
       });
       if (res.ok) {
-        trackEvent('Purchase', { value: 249, currency: 'MAD' }, eventId);
+        trackEvent('Purchase', { value: 249, currency: 'MAD', name: formData.name, phone: formData.phone }, eventId);
         setIsSuccess(true);
       }
     } catch (error) {
@@ -116,7 +116,7 @@ export default function Home() {
         body: JSON.stringify({ name: whatsappName.trim(), source: "whatsapp", eventId, fbc, fbp }),
       });
       
-      trackEvent('Purchase', { value: 249, currency: 'MAD' }, eventId);
+      trackEvent('Purchase', { value: 249, currency: 'MAD', name: whatsappName.trim() }, eventId);
 
       // Redirect to WhatsApp
       const phone = "212777330305";
