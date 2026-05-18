@@ -51,33 +51,6 @@ export const trackEvent = (eventName: TrackingEvent, data: any = {}, eventId?: s
     if (!snapData.item_ids) snapData.item_ids = [defaultProduct.id];
   }
 
-  // 3. Prepare TikTok Data
-  const ttData = { ...data };
-  if (eventName === 'Purchase' || eventName === 'InitiateCheckout' || eventName === 'AddToCart') {
-    ttData.value = value;
-    ttData.currency = currency;
-    if (!ttData.content_type) ttData.content_type = 'product';
-    if (!ttData.contents) {
-      ttData.contents = [{
-        content_id: defaultProduct.id,
-        content_type: 'product',
-        content_name: defaultProduct.name,
-        quantity: defaultProduct.quantity,
-        price: defaultProduct.price
-      }];
-    }
-  }
-
-  // TikTok Advanced Matching
-  if (w.ttq && data.phone) {
-    const formattedPhone = formatMoroccanPhone(data.phone);
-    if (formattedPhone) {
-      w.ttq.identify({
-        phone_number: formattedPhone
-      });
-    }
-  }
-
   // Facebook Pixel
   if (w.fbq) {
     w.fbq('track', eventName, fbData, { eventID: eventId });
@@ -88,13 +61,6 @@ export const trackEvent = (eventName: TrackingEvent, data: any = {}, eventId?: s
     const snapEventName = getSnapchatEventName(eventName);
     w.snaptr('track', snapEventName, snapData);
   }
-
-  // TikTok Pixel
-  if (w.ttq) {
-    const ttqEventName = getTikTokEventName(eventName);
-    const options = eventId ? { event_id: eventId } : undefined;
-    w.ttq.track(ttqEventName, ttData, options);
-  }
 };
 
 const getSnapchatEventName = (eventName: TrackingEvent) => {
@@ -103,16 +69,6 @@ const getSnapchatEventName = (eventName: TrackingEvent) => {
     case 'AddToCart': return 'ADD_CART';
     case 'InitiateCheckout': return 'START_CHECKOUT';
     case 'Purchase': return 'PURCHASE';
-    default: return eventName;
-  }
-};
-
-const getTikTokEventName = (eventName: TrackingEvent) => {
-  switch (eventName) {
-    case 'PageView': return 'ViewContent';
-    case 'AddToCart': return 'AddToCart';
-    case 'InitiateCheckout': return 'InitiateCheckout';
-    case 'Purchase': return 'CompletePayment';
     default: return eventName;
   }
 };
